@@ -2,6 +2,7 @@ package com.example
 
 import grails.converters.JSON
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.autoconfigure.condition.ConditionEvaluationReport
 import org.springframework.context.ApplicationContext
 
 class BugDemoController {
@@ -20,8 +21,20 @@ class BugDemoController {
             Class.forName('org.springframework.security.core.userdetails.UserDetailsService')
         ) as List<String>
 
+        boolean excluderOnClasspath = false
+        try {
+            Class.forName('grails.plugin.springsecurity.SecurityAutoConfigurationExcluder')
+            excluderOnClasspath = true
+        } catch (ClassNotFoundException ignored) {}
+
+        List<String> excludedAutoConfigs = []
+        try {
+            ConditionEvaluationReport report = ConditionEvaluationReport.get(applicationContext.autowireCapableBeanFactory)
+            excludedAutoConfigs = report.exclusions?.collect { it } ?: []
+        } catch (Exception ignored) {}
+
         // Check which autoconfigurations are active by looking for their beans
-        Map<String, Map> autoConfigsPresent = [:]
+        Map<String, Map> autoConfigStatus = [:]
         [
             'SecurityAutoConfiguration': 'org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration',
             'SecurityFilterAutoConfiguration': 'org.springframework.boot.autoconfigure.security.servlet.SecurityFilterAutoConfiguration',
@@ -29,12 +42,13 @@ class BugDemoController {
         ].each { String name, String className ->
             try {
                 Class clazz = Class.forName(className)
-                autoConfigsPresent[name] = [
+                autoConfigStatus[name] = [
                     classOnClasspath: true,
-                    beanExists: applicationContext.getBeanNamesForType(clazz).length > 0
+                    beanExists: applicationContext.getBeanNamesForType(clazz).length > 0,
+                    filteredOut: excludedAutoConfigs.contains(className)
                 ]
             } catch (ClassNotFoundException ignored) {
-                autoConfigsPresent[name] = [classOnClasspath: false, beanExists: false]
+                autoConfigStatus[name] = [classOnClasspath: false, beanExists: false, filteredOut: false]
             }
         }
 
@@ -42,12 +56,15 @@ class BugDemoController {
         boolean hasMultipleUserDetailsServices = udsBeans.size() > 1
 
         render([
+            excluderOnClasspath: excluderOnClasspath,
             securityFilterChainBeans: filterChainBeans,
+            securityFilterChainCount: filterChainBeans.size(),
             userDetailsServiceBeans: udsBeans,
-            autoConfigurationsStatus: autoConfigsPresent,
+            userDetailsServiceCount: udsBeans.size(),
+            autoConfigurationsStatus: autoConfigStatus,
+            excludedAutoConfigurations: excludedAutoConfigs,
             multipleFilterChains: hasMultipleFilterChains,
             multipleUserDetailsServices: hasMultipleUserDetailsServices,
-            note: 'The grails-spring-security plugin README requires 7 manual spring.autoconfigure.exclude entries that every user must add. The plugin should auto-exclude these via AutoConfigurationImportFilter SPI.'
         ] as JSON)
     }
 }

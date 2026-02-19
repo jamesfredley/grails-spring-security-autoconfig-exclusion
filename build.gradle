@@ -1,5 +1,6 @@
 buildscript {
     repositories {
+        mavenLocal()
         mavenCentral()
         maven {
            url = 'https://repo.grails.org/grails/restricted'
@@ -27,6 +28,7 @@ apply plugin: "cloud.wondrify.asset-pipeline"
 group = "com.example"
 
 repositories {
+    mavenLocal()
     mavenCentral()
     maven {
        url = 'https://repo.grails.org/grails/restricted'
@@ -35,7 +37,7 @@ repositories {
 
 dependencies {
     constraints {
-        implementation("org.apache.grails:grails-spring-security:7.0.0-M4")
+        implementation("org.apache.grails:grails-spring-security:7.0.2-SNAPSHOT")
     }
     profile "org.apache.grails.profiles:web"
     developmentOnly "org.springframework.boot:spring-boot-devtools" // Spring Boot DevTools may cause performance slowdowns or compatibility issues on larger applications
